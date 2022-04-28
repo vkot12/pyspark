@@ -1,61 +1,42 @@
 
 import pyspark
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType,StructField, StringType, IntegerType 
-from pyspark.sql.types import ArrayType, DoubleType, BooleanType
-from pyspark.sql.functions import col,array_contains
+import os
 
-spark = SparkSession.builder.appName('huinia').getOrCreate()
+isProd = True
 
-df = spark.read.csv("reviews.csv")
+number_cores = 2
+memory_gb = 4
 
-df.printSchema()
+conf = (
+    SparkConf()
+        .setAppName("mandarin")
+        .setMaster('local[{}]'.format(number_cores))
+        .set('spark.driver.memory', '{}g'.format(memory_gb))
+)
 
-df2 = spark.read.option("header",True) \
-     .csv("reviews.csv")
-df2.printSchema()
-   
-
-
-df3 = spark.read.options(header='True', delimiter=',') \
-  .csv("reviews.csv")
-df3.printSchema()
-
-
-schema = StructType() \
-      .add("Id",IntegerType(),True) \
-      .add("ProductId",StringType(),True) \
-      .add("UserId",StringType(),True) \
-      .add("ProfileName",StringType(),True) \
-      .add("HelpfulnessNumerator",IntegerType(),True) \
-      .add("HelpfulnessDenominator",IntegerType(),True) \
-      .add("Score",IntegerType(),True) \
-      .add("Time",IntegerType(),True) \
-      .add("Summary",StringType(),True) \
-      .add("Text",StringType(),True) \
-      
-      
-df_with_schema = spark.read.format("csv") \
-      .option("header", True) \
-      .schema(schema) \
-      .load("reviews.csv")
-df_with_schema.printSchema()
-
-df2.select("UserId","ProductId")
-df2.select(df.UserId,df.ProductId)
-df2.select(df["UserId"],df["ProductId"])
-
-df2.write.option("header",True) \
-    .csv("/tmp/spark_output/laba123")
+if isProd:
+    if not os.path.exists('input/Reviews.csv'):
+        sc.stop()
+        raise Exception("""
+            Download the 'Reviews.csv' file from https://www.kaggle.com/datasets/snap/amazon-fine-food-reviews
+            and put it in 'input' folder
+        """)
+    else:
+        inputRdd = sc.textFile("input/Reviews.csv")
+else:
+    inputRdd = sc.textFile("input/Sample.csv")
     
-rdd=df2.rdd
-print(rdd.collect())
+filteredInput = inputRdd.filter(lambda line: line.startswith("Id,") == False)
+   
+print(inputRdd.collect())
 
 val pairs = lines.map(x => (x.split(" ")(0), x))
 
-rdd2=rdd.mapValues(x => (x, 1)).rdd.map(lambda r: r[0]).collect().reduceByKey(lambda a,b: a+b)
+rdd2=inputRdd.mapValues(x => (x, 1)).inputRdd.map(lambda r: r[0]).collect().reduceByKey(lambda a,b: a+b)
 
 rdd3=rdd2.map(lambda x: (x[0], sorted(x[1]), x[2]  ))
 
 rdd4=rdd3.take(10)
 
+sc.stop()
